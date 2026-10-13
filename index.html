@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pomodoro Timer</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#3b1f2b;color:#fff;font-family:system-ui,sans-serif;text-align:center;transition:background .4s}
+body.short{background:#173f35}body.long{background:#1b2a4a}
+.tabs button,.ctrl button{border:0;border-radius:8px;padding:10px 18px;font-size:1rem;cursor:pointer;background:#fff2;color:#fff}
+.tabs button.on{background:#fff;color:#222}
+#time{font-size:clamp(4rem,18vw,8rem);font-weight:bold;font-family:ui-monospace,monospace}
+.ctrl button{background:#fff;color:#222;font-weight:bold;padding:12px 28px}
+</style></head><body>
+<h1>🍅 Pomodoro Timer</h1>
+<div class="tabs">
+  <button data-m="focus" class="on">Focus</button><button data-m="short">Short break</button><button data-m="long">Long break</button>
+</div>
+<div id="time">25:00</div>
+<div class="ctrl"><button id="start">Start</button> <button id="reset">Reset</button></div>
+<div>Focus sessions done: <b id="count">0</b></div>
+<script>
+const MIN = { focus: 25, short: 5, long: 15 };
+let mode = "focus", remaining = MIN.focus * 60, end = 0, timer = null, count = 0;
+const timeEl = document.getElementById("time"), startBtn = document.getElementById("start");
+
+function render() {
+  const m = String(Math.floor(remaining / 60)).padStart(2, "0"), s = String(remaining % 60).padStart(2, "0");
+  timeEl.textContent = m + ":" + s; document.title = m + ":" + s + " · Pomodoro";
+}
+function beep() {
+  try {
+    const ctx = new AudioContext();
+    [0, 0.25, 0.5].forEach(t => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = 880; g.gain.setValueAtTime(0.3, ctx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.2);
+      o.connect(g).connect(ctx.destination); o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.2);
+    });
+  } catch (e) {}
+}
+function stop() { clearInterval(timer); timer = null; startBtn.textContent = "Start"; }
+function tick() {
+  remaining = Math.max(0, Math.round((end - Date.now()) / 1000)); render();
+  if (remaining === 0) {
+    stop(); beep();
+    if (mode === "focus") { count++; document.getElementById("count").textContent = count; }
+  }
+}
+startBtn.onclick = () => {
+  if (timer) { stop(); return; }
+  if (remaining === 0) remaining = MIN[mode] * 60;
+  end = Date.now() + remaining * 1000; timer = setInterval(tick, 250); startBtn.textContent = "Pause";
+};
+function setMode(m) {
+  stop(); mode = m; remaining = MIN[m] * 60; render();
+  document.body.className = m === "focus" ? "" : m;
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+}
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setMode(b.dataset.m));
+document.getElementById("reset").onclick = () => setMode(mode);
+render();
+</script></body></html>
